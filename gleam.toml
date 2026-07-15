@@ -1,10 +1,10 @@
 name = "pamphlet"
 version = "0.0.0"
 
-# description = ""
-# licences = ["Apache-2.0"]
-# repository = { type = "github", user = "", repo = "" }
-# links = [{ title = "Website", href = "" }]
+description = "Render djot documents with custom elements and url schemes."
+licences = ["Apache-2.0"]
+repository = { type = "github", user = "crowdhailer", repo = "pamphlet" }
+links = []
 
 [dependencies]
 gleam_stdlib = ">= 1.0.0 and < 2.0.0"

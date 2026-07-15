@@ -4,7 +4,9 @@ title: lustre_raw_inline
 ---
 <p>
   before 
-  <span><b>bold</b></span>
+  <div>
+    &lt;b&gt;bold&lt;/b&gt;
+  </div>
    after
 </p>
 

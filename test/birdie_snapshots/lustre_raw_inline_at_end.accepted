@@ -4,6 +4,8 @@ title: lustre_raw_inline_at_end
 ---
 <p>
   before 
-  <span><hr></span>
+  <div>
+    &lt;hr&gt;
+  </div>
 </p>
 

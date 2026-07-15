@@ -1,0 +1,7 @@
+---
+version: 2.0.1
+title: rewrite_symbol_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: rewrite_symbol_test
+---
+My reaction is :+1: 😊.

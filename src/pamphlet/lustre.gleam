@@ -70,10 +70,10 @@ pub fn default() -> Renderer(msg, t) {
   Renderer(
     resolve_url: continuation.return,
     resolve_raw_block: fn(content) {
-      continuation.return(element.unsafe_raw_html("", "div", [], content))
+      continuation.return(html.div([], [html.text(content)]))
     },
     resolve_raw_inline: fn(content) {
-      continuation.return(element.unsafe_raw_html("", "span", [], content))
+      continuation.return(html.div([], [html.text(content)]))
     },
     resolve_symbol: continuation.return,
   )

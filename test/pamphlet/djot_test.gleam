@@ -64,6 +64,25 @@ pub fn raw_block_test() {
   |> birdie.snap("raw_block_test")
 }
 
+pub fn rewrite_raw_blocks_test() {
+  // render raw html as visible source instead of injecting it
+  let renderer =
+    djot.Renderer(..djot.default(), resolve_raw_block: fn(_content) {
+      continuation.return("RAW HTML")
+    })
+
+  "
+Title
+
+````=html
+<div data-code=\"```\">Spotless</div>
+````"
+  |> jot.parse()
+  |> djot.to_markup(renderer)
+  |> fn(m) { m(fn(x) { x }) }
+  |> birdie.snap("rewrite_raw_block_test")
+}
+
 pub fn div_test() {
   ":::
 Wash first
@@ -242,7 +261,7 @@ pub fn url_link_test() {
 
 pub fn custom_link_test() {
   let renderer =
-    djot.Renderer(resolve_url: fn(in) {
+    djot.Renderer(..djot.default(), resolve_url: fn(in) {
       assert "guide://123" == in
       continuation.return("/guides/123.md")
     })
@@ -293,6 +312,21 @@ pub fn inline_attributes_test() {
   |> birdie.snap("inline_attributes_test")
 }
 
+// Not parsed by djot
+// pub fn rewrite_raw_inlines_test() {
+//   // escape raw inline html instead of injecting it
+//   let renderer =
+//     djot.Renderer(..djot.default(), resolve_raw_inline: fn(content) {
+//       continuation.return(content)
+//     })
+
+//   "before `<b>bold</b>`{=html} after"
+//   |> jot.parse()
+//   |> djot.to_markup(renderer)
+//   |> fn(m) { m(fn(x) { x }) }
+//   |> birdie.snap("rewrite_raw_inlines_test")
+// }
+
 pub fn footnote_test() {
   "[^foo]"
   |> jot.parse()
@@ -323,6 +357,22 @@ pub fn symbol_test() {
   |> djot.to_markup(djot.default())
   |> fn(m) { m(fn(x) { x }) }
   |> birdie.snap("symbol_test")
+}
+
+pub fn rewrite_symbol_test() {
+  let renderer =
+    djot.Renderer(..djot.default(), resolve_symbol: fn(name) {
+      case name {
+        "smiley" -> continuation.return("😊")
+        name -> continuation.return(":" <> name <> ":")
+      }
+    })
+
+  "My reaction is :+1: :smiley:."
+  |> jot.parse()
+  |> djot.to_markup(renderer)
+  |> fn(m) { m(fn(x) { x }) }
+  |> birdie.snap("rewrite_symbol_test")
 }
 
 pub fn mark_test() {

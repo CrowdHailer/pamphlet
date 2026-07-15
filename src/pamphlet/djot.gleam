@@ -9,19 +9,26 @@ import jot
 import midas/continuation.{type Continuation as K}
 
 pub type Renderer(t) {
-  Renderer(resolve_url: fn(String) -> K(t, String))
+  Renderer(
+    resolve_url: fn(String) -> K(t, String),
+    resolve_raw_block: fn(String) -> K(t, String),
+    // resolve_raw_inline: fn(String) -> K(t, String),
+    resolve_symbol: fn(String) -> K(t, String),
+  )
 }
 
 pub fn default() -> Renderer(t) {
-  Renderer(resolve_url: continuation.return)
+  Renderer(
+    resolve_url: continuation.return,
+    resolve_raw_block: fn(content) { continuation.return(raw_block(content)) },
+    // resolve_raw_inline: fn(content) { continuation.return(content) },
+    resolve_symbol: fn(content) { continuation.return(symbol(content)) },
+  )
 }
 
 /// Render a document to djot flavoured markup.
 /// Special forms are resolved through the given renderer.
-pub fn to_markup(
-  document: jot.Document,
-  renderer: Renderer(t),
-) -> K(t, String) {
+pub fn to_markup(document: jot.Document, renderer: Renderer(t)) -> K(t, String) {
   containers_to_markup(document.content, renderer)
 }
 
@@ -39,6 +46,7 @@ fn container_to_markup(
   container: jot.Container,
   renderer: Renderer(t),
 ) -> K(t, String) {
+  let Renderer(resolve_raw_block:, ..) = renderer
   case container {
     jot.ThematicBreak -> continuation.return(thematic_break())
     jot.Paragraph(attributes:, content:) -> {
@@ -51,7 +59,10 @@ fn container_to_markup(
     }
     jot.Codeblock(attributes:, language:, content:) ->
       continuation.return(codeblock(attributes, language, content))
-    jot.RawBlock(content:) -> continuation.return(raw_block(content))
+    jot.RawBlock(content:) -> {
+      use content <- continuation.then(resolve_raw_block(content))
+      continuation.return(content)
+    }
     jot.BulletList(layout:, style:, items:) -> {
       use items <- continuation.then(
         continuation.each(items, containers_to_markup(_, renderer)),
@@ -92,7 +103,12 @@ fn inlines_to_markup(
 }
 
 fn inline_to_markup(inline: jot.Inline, renderer: Renderer(t)) -> K(t, String) {
-  let Renderer(resolve_url:) = renderer
+  let Renderer(
+    resolve_url:,
+    resolve_raw_block: _,
+    // resolve_raw_inline:,
+    resolve_symbol:,
+  ) = renderer
   case inline {
     jot.Linebreak -> continuation.return(linebreak())
     jot.NonBreakingSpace -> continuation.return(non_breaking_space())
@@ -160,7 +176,10 @@ fn inline_to_markup(inline: jot.Inline, renderer: Renderer(t)) -> K(t, String) {
     jot.Code(content:) -> continuation.return(verbatim(content))
     jot.MathInline(content:) -> continuation.return(math_inline(content))
     jot.MathDisplay(content:) -> continuation.return(math_display(content))
-    jot.Symbol(content:) -> continuation.return(symbol(content))
+    jot.Symbol(content:) -> {
+      use content <- continuation.then(resolve_symbol(content))
+      continuation.return(content)
+    }
   }
 }
 

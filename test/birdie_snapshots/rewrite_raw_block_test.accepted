@@ -1,0 +1,8 @@
+---
+version: 2.0.1
+title: rewrite_raw_block_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: rewrite_raw_blocks_test
+---
+Title
+RAW HTML
