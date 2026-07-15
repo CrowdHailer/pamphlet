@@ -1,0 +1,18 @@
+---
+version: 2.0.1
+title: block_attributes_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: block_attributes_test
+---
+{.lead #intro data-mode="fast"}
+Wash first
+{.important #quote}
+> Dry second
+{.sample #code}
+```gleam
+pub fn wash() { Nil }
+```
+{.wide #panel}
+::: laundry
+Fold third
+:::

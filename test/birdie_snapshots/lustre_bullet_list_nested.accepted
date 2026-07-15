@@ -1,0 +1,21 @@
+---
+version: 2.0.1
+title: lustre_bullet_list_nested
+---
+<ul>
+  <li>
+    Wash
+    <ul>
+      <li>
+        Soak
+      </li>
+      <li>
+        Scrub
+      </li>
+    </ul>
+  </li>
+  <li>
+    Dry
+  </li>
+</ul>
+

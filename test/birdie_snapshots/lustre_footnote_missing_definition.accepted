@@ -1,0 +1,25 @@
+---
+version: 2.0.1
+title: lustre_footnote_missing_definition
+---
+<p>
+  Wash first.
+  <a href="#fn1" id="fnref1" role="doc-noteref">
+    <sup>
+      1
+    </sup>
+  </a>
+</p>
+<section role="doc-endnotes">
+  <hr>
+  <ol>
+    <li id="fn1">
+      <p>
+        <a href="#fnref1" role="doc-backlink">
+          ↩︎
+        </a>
+      </p>
+    </li>
+  </ol>
+</section>
+

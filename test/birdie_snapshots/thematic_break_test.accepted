@@ -1,0 +1,7 @@
+---
+version: 2.0.1
+title: thematic_break_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: thematic_break_test
+---
+---

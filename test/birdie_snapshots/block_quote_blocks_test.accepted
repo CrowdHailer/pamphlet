@@ -1,0 +1,11 @@
+---
+version: 2.0.1
+title: block_quote_blocks_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: block_quote_blocks_test
+---
+> {#Laundry}
+> # Laundry
+>
+> - Wash
+> - Dry

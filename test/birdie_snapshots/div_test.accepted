@@ -1,0 +1,9 @@
+---
+version: 2.0.1
+title: div_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: div_test
+---
+:::
+Wash first
+:::

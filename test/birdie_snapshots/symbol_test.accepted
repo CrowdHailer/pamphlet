@@ -1,0 +1,7 @@
+---
+version: 2.0.1
+title: symbol_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: symbol_test
+---
+My reaction is :+1: :smiley:.

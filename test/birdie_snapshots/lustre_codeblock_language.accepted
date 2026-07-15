@@ -1,0 +1,11 @@
+---
+version: 2.0.1
+title: lustre_codeblock_language
+---
+<pre>
+  <code class="language-gleam">
+    pub fn wash() { Nil }
+
+  </code>
+</pre>
+

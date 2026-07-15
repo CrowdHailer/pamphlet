@@ -1,0 +1,7 @@
+---
+version: 2.0.1
+title: math_inline_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: math_inline_test
+---
+Einstein derived $`e=mc^2`.

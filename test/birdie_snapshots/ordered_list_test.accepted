@@ -1,0 +1,8 @@
+---
+version: 2.0.1
+title: ordered_list_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: ordered_list_test
+---
+1. Wash
+2. Dry

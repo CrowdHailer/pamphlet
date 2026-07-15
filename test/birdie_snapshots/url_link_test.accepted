@@ -1,0 +1,7 @@
+---
+version: 2.0.1
+title: url_link_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: url_link_test
+---
+[Spotless](https://spotless.run)

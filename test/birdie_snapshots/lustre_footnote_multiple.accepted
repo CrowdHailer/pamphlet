@@ -1,0 +1,40 @@
+---
+version: 2.0.1
+title: lustre_footnote_multiple
+---
+<p>
+  Wash first.
+  <a href="#fn1" id="fnref1" role="doc-noteref">
+    <sup>
+      1
+    </sup>
+  </a>
+   Dry second.
+  <a href="#fn2" id="fnref2" role="doc-noteref">
+    <sup>
+      2
+    </sup>
+  </a>
+</p>
+<section role="doc-endnotes">
+  <hr>
+  <ol>
+    <li id="fn1">
+      <p>
+        Because stains set.
+        <a href="#fnref1" role="doc-backlink">
+          ↩︎
+        </a>
+      </p>
+    </li>
+    <li id="fn2">
+      <p>
+        Because mildew.
+        <a href="#fnref2" role="doc-backlink">
+          ↩︎
+        </a>
+      </p>
+    </li>
+  </ol>
+</section>
+

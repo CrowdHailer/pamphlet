@@ -1,0 +1,11 @@
+---
+version: 2.0.1
+title: inline_attributes_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: inline_attributes_test
+---
+[Spotless](https://spotless.run){.external #site title="Spotless"}
+[Docs][docs]{.reference}
+![Logo](https://spotless.run/logo.png){.rounded #logo}
+![Badge][badge]{.icon}
+[read the manual]{.big .red}

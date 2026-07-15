@@ -1,0 +1,13 @@
+---
+version: 2.0.1
+title: lustre_bullet_list
+---
+<ul>
+  <li>
+    Wash
+  </li>
+  <li>
+    Dry
+  </li>
+</ul>
+

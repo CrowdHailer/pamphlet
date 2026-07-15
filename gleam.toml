@@ -1,0 +1,18 @@
+name = "pamphlet"
+version = "0.0.0"
+
+# description = ""
+# licences = ["Apache-2.0"]
+# repository = { type = "github", user = "", repo = "" }
+# links = [{ title = "Website", href = "" }]
+
+[dependencies]
+gleam_stdlib = ">= 1.0.0 and < 2.0.0"
+jot = ">= 12.0.1 and < 13.0.0"
+lustre = ">= 5.7.0 and < 6.0.0"
+midas = ">= 3.0.0 and < 4.0.0"
+splitter = ">= 1.2.0 and < 2.0.0"
+
+[dev_dependencies]
+gleeunit = ">= 1.0.0 and < 2.0.0"
+birdie = ">= 2.0.1 and < 3.0.0"

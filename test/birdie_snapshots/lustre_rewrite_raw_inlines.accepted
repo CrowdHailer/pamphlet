@@ -1,0 +1,8 @@
+---
+version: 2.0.1
+title: lustre_rewrite_raw_inlines
+---
+<p>
+  before &lt;b&gt;bold&lt;/b&gt; after
+</p>
+

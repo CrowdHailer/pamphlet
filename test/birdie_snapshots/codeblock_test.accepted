@@ -1,0 +1,9 @@
+---
+version: 2.0.1
+title: codeblock_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: codeblock_test
+---
+```
+wash()
+```

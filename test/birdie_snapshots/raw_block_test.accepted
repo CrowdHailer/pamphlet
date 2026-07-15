@@ -1,0 +1,9 @@
+---
+version: 2.0.1
+title: raw_block_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: raw_block_test
+---
+````=html
+<div data-code="```">Spotless</div>
+````

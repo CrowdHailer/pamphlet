@@ -1,0 +1,7 @@
+---
+version: 2.0.1
+title: math_display_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: math_display_test
+---
+$$` x^n + y^n = z^n `

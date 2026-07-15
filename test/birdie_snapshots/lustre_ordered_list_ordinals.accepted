@@ -1,0 +1,21 @@
+---
+version: 2.0.1
+title: lustre_ordered_list_ordinals
+---
+<ol type="a">
+  <li>
+    Wash
+  </li>
+  <li>
+    Dry
+  </li>
+</ol>
+<ol type="A">
+  <li>
+    Fold
+  </li>
+  <li>
+    Put away
+  </li>
+</ol>
+

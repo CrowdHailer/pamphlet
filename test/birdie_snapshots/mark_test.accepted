@@ -1,0 +1,7 @@
+---
+version: 2.0.1
+title: mark_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: mark_test
+---
+This is {=highlighted=}.

@@ -1,0 +1,13 @@
+---
+version: 2.0.1
+title: heading_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: heading_test
+---
+{#A-long-heading}
+# A
+long heading
+
+{#and-a-second}
+## and a second
+

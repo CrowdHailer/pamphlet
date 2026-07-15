@@ -1,0 +1,13 @@
+---
+version: 2.0.1
+title: div_class_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: div_class_test
+---
+::: laundry
+{#Laundry}
+# Laundry
+
+- Wash
+- Dry
+:::

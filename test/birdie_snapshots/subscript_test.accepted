@@ -1,0 +1,7 @@
+---
+version: 2.0.1
+title: subscript_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: subscript_test
+---
+~one~

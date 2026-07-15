@@ -1,0 +1,10 @@
+---
+version: 2.0.1
+title: bullet_list_styles_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: bullet_list_styles_test
+---
+* Wash
+* Dry
++ Fold
++ Put away

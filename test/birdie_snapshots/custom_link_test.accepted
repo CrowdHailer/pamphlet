@@ -1,0 +1,7 @@
+---
+version: 2.0.1
+title: custom_link_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: custom_link_test
+---
+[guide](/guides/123.md)

@@ -1,0 +1,10 @@
+---
+version: 2.0.1
+title: lustre_math_inline
+---
+<p>
+  <span class="math inline">
+    \(e=mc^2\)
+  </span>
+</p>
+

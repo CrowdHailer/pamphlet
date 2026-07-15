@@ -1,0 +1,7 @@
+---
+version: 2.0.1
+title: image_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: image_test
+---
+![Spotless](https://spotless.run/logo.png)

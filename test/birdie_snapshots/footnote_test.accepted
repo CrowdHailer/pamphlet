@@ -1,0 +1,7 @@
+---
+version: 2.0.1
+title: footnote_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: footnote_test
+---
+[^foo]
