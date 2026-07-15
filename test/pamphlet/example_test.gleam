@@ -1,35 +1,4 @@
-# Pamphlet
-
-
-[![Package Version](https://img.shields.io/hexpm/v/pamphlet)](https://hex.pm/packages/pamphlet)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/pamphlet/)
-
-Render djot documents with custom elements and url schemes.
-
-Rendering links, images, raw HTML, and symbols often need knowledge the document does
-not have: asset fingerprints, CDN hosts, valid page routes, async manifests,
-or build-time reports.
-Pamphlet exposes those decisions as [continuations](https://crowdhailer.me/2026-07-15/abstracting-effects-with-continuations/).
-
-## Targets
-
-Pamphlet supports rendering back to djot/markdown, useful for `llm.txt` and `.md` pages and lustre for web pages and web apps.
-
-## Front matter
-
-Defines pages with frontmatter deliminated by `---`.
-Currently parses frontmatter to string key and value list.
-
-## Rendering
-
-All these examples use symbol but the renderer also provides hooks for urls and raw blocks.
-Building on continuations we can make custom renderers with their own control logic.
-
-### Pure renderer
-
-This renderer always succeeds and transforms thumbs down to thumbs up.
-
-```gleam
+import gleam/set
 import pamphlet
 import pamphlet/djot
 
@@ -55,15 +24,6 @@ pub fn cheerful_render_test() {
     |> cheerful_symbol_render()
   assert ":+1: and :+1:" == out
 }
-```
-
-### Aborting renderer
-
-This renderer will halt if anyone uses the turd symbol.
-
-```gleam
-import pamphlet
-import pamphlet/djot
 
 pub fn check_turd_symbol_render(text: String) -> Result(String, Nil) {
   let renderer =
@@ -91,16 +51,6 @@ pub fn check_render_test() {
     |> check_turd_symbol_render()
   assert Error(Nil) == out
 }
-```
-
-### Stateful renderer
-
-This renderer collects the set of all symbols used.
-
-```gleam
-import gleam/set
-import pamphlet
-import pamphlet/djot
 
 pub fn list_symbols_render(text) {
   let renderer =
@@ -122,11 +72,3 @@ pub fn list_symbols_render_test() {
   assert ":-1: and :+1:" == page
   assert set.from_list(["-1", "+1"]) == symbols
 }
-```
-
-## Development
-
-```sh
-gleam run   # Run the project
-gleam test  # Run the tests
-```

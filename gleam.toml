@@ -1,5 +1,5 @@
 name = "pamphlet"
-version = "0.0.0"
+version = "1.0.0"
 
 description = "Render djot documents with custom elements and url schemes."
 licences = ["Apache-2.0"]
