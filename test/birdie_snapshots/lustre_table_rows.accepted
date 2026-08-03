@@ -1,0 +1,23 @@
+---
+version: 2.0.1
+title: lustre_table_rows
+---
+<table>
+  <tr>
+    <td>
+      a
+    </td>
+    <td>
+      <strong>
+        b
+      </strong>
+    </td>
+  </tr>
+  <tr>
+    <td></td>
+    <td>
+      c
+    </td>
+  </tr>
+</table>
+

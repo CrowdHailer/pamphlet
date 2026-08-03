@@ -28,7 +28,10 @@ pub fn default() -> Renderer(t) {
 
 /// Render a document to djot flavoured markup.
 /// Special forms are resolved through the given renderer.
-pub fn to_markup(document: jot.Document, renderer: Renderer(t)) -> K(t, String) {
+pub fn to_markup(
+  document: jot.Document,
+  renderer: Renderer(t),
+) -> K(t, String) {
   containers_to_markup(document.content, renderer)
 }
 
@@ -62,6 +65,14 @@ fn container_to_markup(
     jot.RawBlock(content:) -> {
       use content <- continuation.then(resolve_raw_block(content))
       continuation.return(content)
+    }
+    jot.Table(attributes:, caption:, rows:) -> {
+      use caption <- continuation.then(table_caption_to_markup(
+        caption,
+        renderer,
+      ))
+      use rows <- continuation.then(table_rows_to_markup(rows, renderer))
+      continuation.return(table(attributes, caption, rows))
     }
     jot.BulletList(layout:, style:, items:) -> {
       use items <- continuation.then(
@@ -329,6 +340,114 @@ fn raw_block(content: String) -> String {
   }
 
   fence <> "=html\n" <> content <> fence
+}
+
+fn table_rows_to_markup(
+  rows: List(jot.TableRow),
+  renderer: Renderer(t),
+) -> K(t, List(String)) {
+  continuation.each(rows, table_row_to_markup(_, renderer))
+}
+
+fn table_caption_to_markup(
+  caption: Option(List(jot.Inline)),
+  renderer: Renderer(t),
+) -> K(t, Option(String)) {
+  case caption {
+    None -> continuation.return(None)
+    Some(caption) -> {
+      use caption <- continuation.then(inlines_to_markup(caption, renderer))
+      continuation.return(Some(caption))
+    }
+  }
+}
+
+fn table_row_to_markup(
+  row: jot.TableRow,
+  renderer: Renderer(t),
+) -> K(t, String) {
+  let jot.TableRow(header:, cells:) = row
+  use cells <- continuation.then(table_cells_to_markup(cells, renderer))
+  let row =
+    "| " <> string.join(list.map(cells, fn(cell) { cell.1 }), " | ") <> " |"
+  case header {
+    False -> continuation.return(row)
+    True -> {
+      let separator =
+        cells
+        |> list.map(fn(cell) { table_cell_separator(cell.0) })
+        |> string.join(" | ")
+      continuation.return(row <> "\n| " <> separator <> " |")
+    }
+  }
+}
+
+fn table_cells_to_markup(
+  cells: List(jot.TableCell),
+  renderer: Renderer(t),
+) -> K(t, List(#(Option(jot.TableAlignment), String))) {
+  continuation.each(cells, fn(cell) {
+    let jot.TableCell(alignment:, content:) = cell
+    use content <- continuation.then(table_inlines_to_markup(content, renderer))
+    continuation.return(#(alignment, content))
+  })
+}
+
+fn table_inlines_to_markup(
+  inlines: List(jot.Inline),
+  renderer: Renderer(t),
+) -> K(t, String) {
+  inlines
+  |> escape_table_pipes()
+  |> inlines_to_markup(renderer)
+}
+
+fn escape_table_pipes(inlines: List(jot.Inline)) -> List(jot.Inline) {
+  inlines
+  |> list.map(fn(inline) {
+    case inline {
+      jot.Text(text) -> jot.Text(string.replace(text, "|", "\\|"))
+      jot.Link(attributes, content, destination) ->
+        jot.Link(attributes, escape_table_pipes(content), destination)
+      jot.Image(attributes, content, destination) ->
+        jot.Image(attributes, escape_table_pipes(content), destination)
+      jot.Span(attributes, content) ->
+        jot.Span(attributes, escape_table_pipes(content))
+      jot.Emphasis(content) -> jot.Emphasis(escape_table_pipes(content))
+      jot.Strong(content) -> jot.Strong(escape_table_pipes(content))
+      jot.Delete(content) -> jot.Delete(escape_table_pipes(content))
+      jot.Insert(content) -> jot.Insert(escape_table_pipes(content))
+      jot.Mark(content) -> jot.Mark(escape_table_pipes(content))
+      jot.Superscript(content) -> jot.Superscript(escape_table_pipes(content))
+      jot.Subscript(content) -> jot.Subscript(escape_table_pipes(content))
+      inline -> inline
+    }
+  })
+}
+
+fn table_cell_separator(alignment: Option(jot.TableAlignment)) -> String {
+  case alignment {
+    None -> "---"
+    Some(jot.AlignLeft) -> ":---"
+    Some(jot.AlignCenter) -> ":---:"
+    Some(jot.AlignRight) -> "---:"
+  }
+}
+
+fn table(
+  attributes: Dict(String, String),
+  caption: Option(String),
+  rows: List(String),
+) -> String {
+  let rows = case rows {
+    [] -> "|--|"
+    rows -> string.join(rows, "\n")
+  }
+  let caption = case caption {
+    None -> ""
+    Some(caption) -> "\n\n^ " <> string.replace(caption, "\n", "\n  ")
+  }
+  block_attributes(attributes) <> rows <> caption
 }
 
 fn codeblock_fence(content: String) -> String {

@@ -80,6 +80,55 @@ pub fn lustre_raw_block_test() {
   |> snap("lustre_raw_block")
 }
 
+pub fn lustre_table_rows_test() {
+  "| a | *b* |
+| | c |"
+  |> snap("lustre_table_rows")
+}
+
+pub fn lustre_table_caption_and_attributes_test() {
+  "{#inventory .striped}
+| a | b |
+
+^ With a _caption_
+  and another line."
+  |> snap("lustre_table_caption_and_attributes")
+}
+
+pub fn lustre_table_headers_and_alignments_test() {
+  "| none | left | center | right |
+|---|:---|:---:|---:|
+| a | b | c | d |
+| second | header | row | here |
+|:---|---:|:---|:---:|
+| e | f | g | h |"
+  |> snap("lustre_table_headers_and_alignments")
+}
+
+pub fn lustre_empty_table_test() {
+  "|--|"
+  |> snap("lustre_empty_table")
+}
+
+pub fn lustre_table_pipes_and_code_test() {
+  "| just two \\| `|` | cells in this table |"
+  |> snap("lustre_table_pipes_and_code")
+}
+
+pub fn lustre_table_continuations_and_footnotes_test() {
+  let renderer =
+    lustre.Renderer(..lustre.default(), resolve_url: fn(url) {
+      continuation.return("/resolved" <> url)
+    })
+
+  "| [guide](/guide) | :warning: [^details] |
+
+^ [caption](/caption)
+
+[^details]: More detail."
+  |> snap_with(renderer, "lustre_table_continuations_and_footnotes")
+}
+
 pub fn lustre_bullet_list_test() {
   "- Wash
 - Dry"

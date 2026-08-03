@@ -1,0 +1,23 @@
+---
+version: 2.0.1
+title: lustre_table_caption_and_attributes
+---
+<table class="striped" id="inventory">
+  <caption>
+    With a 
+    <em>
+      caption
+    </em>
+    
+and another line.
+  </caption>
+  <tr>
+    <td>
+      a
+    </td>
+    <td>
+      b
+    </td>
+  </tr>
+</table>
+

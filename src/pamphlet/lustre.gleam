@@ -16,16 +16,17 @@
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import jot.{
   type Container, type Destination, type Document, type Inline, type ListLayout,
-  BlockQuote, BulletList, Code, Codeblock, Delete, Div, Emphasis, Footnote,
-  Heading, Image, Insert, Linebreak, Link, LowerAlphaOrdinal, Mark, MathDisplay,
-  MathInline, NonBreakingSpace, NumericOrdinal, OrderedList, Paragraph, RawBlock,
-  Reference, Span, Strong, Subscript, Superscript, Symbol, Text, ThematicBreak,
-  Tight, UpperAlphaOrdinal, Url,
+  type TableAlignment, type TableCell, type TableRow, AlignCenter, AlignLeft,
+  AlignRight, BlockQuote, BulletList, Code, Codeblock, Delete, Div, Emphasis,
+  Footnote, Heading, Image, Insert, Linebreak, Link, LowerAlphaOrdinal, Mark,
+  MathDisplay, MathInline, NonBreakingSpace, NumericOrdinal, OrderedList,
+  Paragraph, RawBlock, Reference, Span, Strong, Subscript, Superscript, Symbol,
+  Table, TableCell, TableRow, Text, ThematicBreak, Tight, UpperAlphaOrdinal, Url,
 }
 import lustre/attribute.{type Attribute}
 import lustre/element.{type Element}
@@ -273,6 +274,21 @@ fn container_to_lustre(
       continuation.return(lustre |> append_element(element))
     }
 
+    Table(attributes:, caption:, rows:) -> {
+      use inner <- continuation.then(table_caption_to_lustre(
+        GeneratedLustre([], lustre.used_footnotes),
+        caption,
+        refs,
+      ))
+      use inner <- continuation.then(table_rows_to_lustre(inner, rows, refs))
+      continuation.return(
+        wrap_elements(lustre, inner, html.table(
+          attributes_to_lustre(attributes),
+          _,
+        )),
+      )
+    }
+
     BulletList(layout:, style: _, items:) -> {
       use inner <- continuation.then(list_items_to_lustre(
         GeneratedLustre([], lustre.used_footnotes),
@@ -331,6 +347,100 @@ fn container_to_lustre(
         )),
       )
     }
+  }
+}
+
+fn table_rows_to_lustre(
+  lustre: GeneratedLustre(msg),
+  rows: List(TableRow),
+  refs: RenderRefs(msg, t),
+) -> K(t, GeneratedLustre(msg)) {
+  case rows {
+    [] -> continuation.return(lustre)
+    [TableRow(header:, cells:), ..rows] -> {
+      let cell_tag = case header {
+        True -> "th"
+        False -> "td"
+      }
+      use lustre <- continuation.then(table_row_to_lustre(
+        lustre,
+        cell_tag,
+        cells,
+        refs,
+      ))
+      table_rows_to_lustre(lustre, rows, refs)
+    }
+  }
+}
+
+fn table_caption_to_lustre(
+  lustre: GeneratedLustre(msg),
+  caption: Option(List(Inline)),
+  refs: RenderRefs(msg, t),
+) -> K(t, GeneratedLustre(msg)) {
+  case caption {
+    None -> continuation.return(lustre)
+    Some(caption) -> {
+      use inner <- continuation.then(inlines_to_lustre(
+        GeneratedLustre([], lustre.used_footnotes),
+        caption,
+        refs,
+        TrimLast,
+      ))
+      continuation.return(wrap_elements(lustre, inner, html.caption([], _)))
+    }
+  }
+}
+
+fn table_row_to_lustre(
+  lustre: GeneratedLustre(msg),
+  cell_tag: String,
+  cells: List(TableCell),
+  refs: RenderRefs(msg, t),
+) -> K(t, GeneratedLustre(msg)) {
+  use inner <- continuation.then(table_cells_to_lustre(
+    GeneratedLustre([], lustre.used_footnotes),
+    cell_tag,
+    cells,
+    refs,
+  ))
+  continuation.return(wrap_elements(lustre, inner, html.tr([], _)))
+}
+
+fn table_cells_to_lustre(
+  lustre: GeneratedLustre(msg),
+  cell_tag: String,
+  cells: List(TableCell),
+  refs: RenderRefs(msg, t),
+) -> K(t, GeneratedLustre(msg)) {
+  case cells {
+    [] -> continuation.return(lustre)
+    [TableCell(alignment:, content:), ..cells] -> {
+      use inner <- continuation.then(inlines_to_lustre(
+        GeneratedLustre([], lustre.used_footnotes),
+        content,
+        refs,
+        TrimLast,
+      ))
+      lustre
+      |> wrap_elements(inner, element.element(
+        cell_tag,
+        attributes_to_lustre(table_cell_attributes(alignment)),
+        _,
+      ))
+      |> table_cells_to_lustre(cell_tag, cells, refs)
+    }
+  }
+}
+
+fn table_cell_attributes(
+  alignment: Option(TableAlignment),
+) -> Dict(String, String) {
+  case alignment {
+    None -> dict.new()
+    Some(AlignLeft) -> dict.from_list([#("style", "text-align: left;")])
+    Some(AlignCenter) -> dict.from_list([#("style", "text-align: center;")])
+    Some(AlignRight) -> dict.from_list([#("style", "text-align: right;")])
   }
 }
 

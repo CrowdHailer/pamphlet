@@ -1,0 +1,63 @@
+---
+version: 2.0.1
+title: lustre_table_headers_and_alignments
+---
+<table>
+  <tr>
+    <th>
+      none
+    </th>
+    <th style="text-align: left;">
+      left
+    </th>
+    <th style="text-align: center;">
+      center
+    </th>
+    <th style="text-align: right;">
+      right
+    </th>
+  </tr>
+  <tr>
+    <td>
+      a
+    </td>
+    <td style="text-align: left;">
+      b
+    </td>
+    <td style="text-align: center;">
+      c
+    </td>
+    <td style="text-align: right;">
+      d
+    </td>
+  </tr>
+  <tr>
+    <th style="text-align: left;">
+      second
+    </th>
+    <th style="text-align: right;">
+      header
+    </th>
+    <th style="text-align: left;">
+      row
+    </th>
+    <th style="text-align: center;">
+      here
+    </th>
+  </tr>
+  <tr>
+    <td style="text-align: left;">
+      e
+    </td>
+    <td style="text-align: right;">
+      f
+    </td>
+    <td style="text-align: left;">
+      g
+    </td>
+    <td style="text-align: center;">
+      h
+    </td>
+  </tr>
+</table>
+

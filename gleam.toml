@@ -8,7 +8,8 @@ links = []
 
 [dependencies]
 gleam_stdlib = ">= 1.0.0 and < 2.0.0"
-jot = ">= 12.0.1 and < 13.0.0"
+# jot = ">= 12.0.1 and < 13.0.0"
+jot = { git = "https://github.com/crowdhailer/jot", ref = "379ff6d" }
 lustre = ">= 5.7.0 and < 6.0.0"
 midas = ">= 3.0.0 and < 4.0.0"
 splitter = ">= 1.2.0 and < 2.0.0"
