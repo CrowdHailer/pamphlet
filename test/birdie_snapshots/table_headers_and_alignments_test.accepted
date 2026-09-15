@@ -1,0 +1,12 @@
+---
+version: 2.0.1
+title: table_headers_and_alignments_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: table_headers_and_alignments_test
+---
+| none | left | center | right |
+| --- | :--- | :---: | ---: |
+| a | b | c | d |
+| second | header | row | here |
+| :--- | ---: | :--- | :---: |
+| e | f | g | h |

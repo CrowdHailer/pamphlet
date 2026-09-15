@@ -13,11 +13,12 @@ import gleam/result
 import gleam/string
 import jot.{
   type Container, type Destination, type Document, type Inline, type ListLayout,
-  BlockQuote, BulletList, Code, Codeblock, Delete, Div, Emphasis, Footnote,
-  Heading, Image, Insert, Linebreak, Link, LowerAlphaOrdinal, Mark, MathDisplay,
-  MathInline, NonBreakingSpace, NumericOrdinal, OrderedList, Paragraph, RawBlock,
-  Reference, Span, Strong, Subscript, Superscript, Symbol, Text, ThematicBreak,
-  Tight, UpperAlphaOrdinal, Url,
+  type TableAlignment, type TableCell, type TableRow, AlignCenter, AlignLeft,
+  AlignRight, BlockQuote, BulletList, Code, Codeblock, Delete, Div, Emphasis,
+  Footnote, Heading, Image, Insert, Linebreak, Link, LowerAlphaOrdinal, Mark,
+  MathDisplay, MathInline, NonBreakingSpace, NumericOrdinal, OrderedList,
+  Paragraph, RawBlock, Reference, Span, Strong, Subscript, Superscript, Symbol,
+  Table, TableCell, TableRow, Text, ThematicBreak, Tight, UpperAlphaOrdinal, Url,
 }
 import lustre/attribute.{type Attribute}
 import lustre/element.{type Element}
@@ -62,6 +63,11 @@ pub type Renderer(msg, t) {
       K(t, Element(msg)),
     render_raw_block: fn(String) -> K(t, Element(msg)),
     render_raw_inline: fn(String) -> K(t, Element(msg)),
+    render_table: fn(Attributes, List(Element(msg))) -> K(t, Element(msg)),
+    render_table_caption: fn(List(Element(msg))) -> K(t, Element(msg)),
+    render_table_row: fn(Bool, List(Element(msg))) -> K(t, Element(msg)),
+    render_table_cell: fn(Bool, Option(TableAlignment), List(Element(msg))) ->
+      K(t, Element(msg)),
     render_bullet_list: fn(ListLayout, jot.BulletStyle, List(Element(msg))) ->
       K(t, Element(msg)),
     render_ordered_list: fn(
@@ -136,6 +142,16 @@ pub fn default() -> Renderer(msg, t) {
           html.code(attributes_to_lustre(code_attrs), [element.text(content)]),
         ]),
       )
+    },
+    render_table: container("table"),
+    render_table_caption: tag("caption", dict.new(), _),
+    render_table_row: fn(_, children) { tag("tr", dict.new(), children) },
+    render_table_cell: fn(header, alignment, children) {
+      let name = case header {
+        True -> "th"
+        False -> "td"
+      }
+      tag(name, table_cell_attributes(alignment), children)
     },
     render_bullet_list: fn(_, _, children) { tag("ul", dict.new(), children) },
     render_ordered_list: fn(_, _, ordinal, start, children) {
@@ -420,6 +436,16 @@ fn container_to_lustre(
       continuation.return(lustre |> append_element(element))
     }
 
+    Table(attributes:, caption:, rows:) -> {
+      use inner <- continuation.then(table_caption_to_lustre(
+        GeneratedLustre([], lustre.used_footnotes),
+        caption,
+        refs,
+      ))
+      use inner <- continuation.then(table_rows_to_lustre(inner, rows, refs))
+      wrap_elements(lustre, inner, refs.renderer.render_table(attributes, _))
+    }
+
     BulletList(layout:, style:, items:) -> {
       use inner <- continuation.then(list_items_to_lustre(
         GeneratedLustre([], lustre.used_footnotes),
@@ -471,6 +497,97 @@ fn container_to_lustre(
         _,
       ))
     }
+  }
+}
+
+fn table_rows_to_lustre(
+  lustre: GeneratedLustre(msg),
+  rows: List(TableRow),
+  refs: RenderRefs(msg, t),
+) -> K(t, GeneratedLustre(msg)) {
+  case rows {
+    [] -> continuation.return(lustre)
+    [TableRow(header:, cells:), ..rows] -> {
+      use lustre <- continuation.then(table_row_to_lustre(
+        lustre,
+        header,
+        cells,
+        refs,
+      ))
+      table_rows_to_lustre(lustre, rows, refs)
+    }
+  }
+}
+
+fn table_caption_to_lustre(
+  lustre: GeneratedLustre(msg),
+  caption: Option(List(Inline)),
+  refs: RenderRefs(msg, t),
+) -> K(t, GeneratedLustre(msg)) {
+  case caption {
+    None -> continuation.return(lustre)
+    Some(caption) -> {
+      use inner <- continuation.then(inlines_to_lustre(
+        GeneratedLustre([], lustre.used_footnotes),
+        caption,
+        refs,
+        TrimLast,
+      ))
+      wrap_elements(lustre, inner, refs.renderer.render_table_caption)
+    }
+  }
+}
+
+fn table_row_to_lustre(
+  lustre: GeneratedLustre(msg),
+  header: Bool,
+  cells: List(TableCell),
+  refs: RenderRefs(msg, t),
+) -> K(t, GeneratedLustre(msg)) {
+  use inner <- continuation.then(table_cells_to_lustre(
+    GeneratedLustre([], lustre.used_footnotes),
+    header,
+    cells,
+    refs,
+  ))
+  wrap_elements(lustre, inner, refs.renderer.render_table_row(header, _))
+}
+
+fn table_cells_to_lustre(
+  lustre: GeneratedLustre(msg),
+  header: Bool,
+  cells: List(TableCell),
+  refs: RenderRefs(msg, t),
+) -> K(t, GeneratedLustre(msg)) {
+  case cells {
+    [] -> continuation.return(lustre)
+    [TableCell(alignment:, content:), ..cells] -> {
+      use inner <- continuation.then(inlines_to_lustre(
+        GeneratedLustre([], lustre.used_footnotes),
+        content,
+        refs,
+        TrimLast,
+      ))
+      use lustre <- continuation.then(
+        wrap_elements(lustre, inner, refs.renderer.render_table_cell(
+          header,
+          alignment,
+          _,
+        )),
+      )
+      table_cells_to_lustre(lustre, header, cells, refs)
+    }
+  }
+}
+
+fn table_cell_attributes(
+  alignment: Option(TableAlignment),
+) -> Dict(String, String) {
+  case alignment {
+    None -> dict.new()
+    Some(AlignLeft) -> dict.from_list([#("style", "text-align: left;")])
+    Some(AlignCenter) -> dict.from_list([#("style", "text-align: center;")])
+    Some(AlignRight) -> dict.from_list([#("style", "text-align: right;")])
   }
 }
 

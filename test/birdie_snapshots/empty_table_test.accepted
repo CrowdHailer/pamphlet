@@ -1,0 +1,7 @@
+---
+version: 2.0.1
+title: empty_table_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: empty_table_test
+---
+|--|

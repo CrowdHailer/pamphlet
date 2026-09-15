@@ -1,0 +1,18 @@
+---
+version: 2.0.1
+title: lustre_table_pipes_and_code
+---
+<table>
+  <tr>
+    <td>
+      just two | 
+      <code>
+        |
+      </code>
+    </td>
+    <td>
+      cells in this table
+    </td>
+  </tr>
+</table>
+

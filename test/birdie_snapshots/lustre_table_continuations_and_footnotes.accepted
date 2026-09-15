@@ -1,0 +1,43 @@
+---
+version: 2.0.1
+title: lustre_table_continuations_and_footnotes
+---
+<table>
+  <caption>
+    <a href="/resolved/caption">
+      caption
+    </a>
+  </caption>
+  <tr>
+    <td>
+      <a href="/resolved/guide">
+        guide
+      </a>
+    </td>
+    <td>
+      <span class="symbol">
+        warning
+      </span>
+       
+      <a href="#fn1" id="fnref1" role="doc-noteref">
+        <sup>
+          1
+        </sup>
+      </a>
+    </td>
+  </tr>
+</table>
+<section role="doc-endnotes">
+  <hr>
+  <ol>
+    <li id="fn1">
+      <p>
+        More detail.
+        <a href="#fnref1" role="doc-backlink">
+          ↩︎
+        </a>
+      </p>
+    </li>
+  </ol>
+</section>
+

@@ -83,6 +83,56 @@ Title
   |> birdie.snap("rewrite_raw_block_test")
 }
 
+pub fn table_rows_test() {
+  "| a | *b* |
+| | c |"
+  |> jot.parse()
+  |> djot.to_markup(djot.default())
+  |> fn(m) { m(fn(x) { x }) }
+  |> birdie.snap("table_rows_test")
+}
+
+pub fn table_caption_and_attributes_test() {
+  "{#inventory .striped}
+| a | b |
+
+^ With a _caption_
+  and another line."
+  |> jot.parse()
+  |> djot.to_markup(djot.default())
+  |> fn(m) { m(fn(x) { x }) }
+  |> birdie.snap("table_caption_and_attributes_test")
+}
+
+pub fn table_headers_and_alignments_test() {
+  "| none | left | center | right |
+|---|:---|:---:|---:|
+| a | b | c | d |
+| second | header | row | here |
+|:---|---:|:---|:---:|
+| e | f | g | h |"
+  |> jot.parse()
+  |> djot.to_markup(djot.default())
+  |> fn(m) { m(fn(x) { x }) }
+  |> birdie.snap("table_headers_and_alignments_test")
+}
+
+pub fn empty_table_test() {
+  "|--|"
+  |> jot.parse()
+  |> djot.to_markup(djot.default())
+  |> fn(m) { m(fn(x) { x }) }
+  |> birdie.snap("empty_table_test")
+}
+
+pub fn table_pipes_and_code_test() {
+  "| just two \\| `|` | cells in this table |"
+  |> jot.parse()
+  |> djot.to_markup(djot.default())
+  |> fn(m) { m(fn(x) { x }) }
+  |> birdie.snap("table_pipes_and_code_test")
+}
+
 pub fn div_test() {
   ":::
 Wash first

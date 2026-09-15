@@ -1,0 +1,11 @@
+---
+version: 2.0.1
+title: table_caption_and_attributes_test
+file: ./test/pamphlet/djot_test.gleam
+test_name: table_caption_and_attributes_test
+---
+{.striped #inventory}
+| a | b |
+
+^ With a _caption_
+  and another line.
