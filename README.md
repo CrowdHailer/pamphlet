@@ -6,9 +6,7 @@
 
 Render djot documents with custom elements and url schemes.
 
-Rendering links, images, raw HTML, and symbols often need knowledge the document does
-not have: asset fingerprints, CDN hosts, valid page routes, async manifests,
-or build-time reports.
+Rendering often needs knowledge the document does not have: asset fingerprints, CDN hosts, syntax grammars, application components, or build-time reports.
 Pamphlet exposes those decisions as [continuations](https://crowdhailer.me/2026-07-15/abstracting-effects-with-continuations/).
 
 ## Targets
@@ -24,6 +22,13 @@ Currently parses frontmatter to string key and value list.
 
 All these examples use symbol but the renderer also provides hooks for urls and raw blocks.
 Building on continuations we can make custom renderers with their own control logic.
+
+The **Lustre renderer** exposes `render_*` callbacks for every document node,
+including list items and generated footnotes. `resolve_url` and
+`resolve_symbol` perform lookups; rendering callbacks construct elements from
+resolved values and already-rendered children. Pamphlet owns traversal and
+footnote bookkeeping. Start from `lustre.default()` and override the fields you
+need.
 
 ### Pure renderer
 

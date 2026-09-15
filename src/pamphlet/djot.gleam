@@ -28,7 +28,10 @@ pub fn default() -> Renderer(t) {
 
 /// Render a document to djot flavoured markup.
 /// Special forms are resolved through the given renderer.
-pub fn to_markup(document: jot.Document, renderer: Renderer(t)) -> K(t, String) {
+pub fn to_markup(
+  document: jot.Document,
+  renderer: Renderer(t),
+) -> K(t, String) {
   containers_to_markup(document.content, renderer)
 }
 

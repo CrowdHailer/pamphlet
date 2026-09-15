@@ -4,19 +4,11 @@
 //// the same function names, the same case order, the same footnote
 //// bookkeeping — so the two targets stay easy to compare. Where jot appends
 //// to an HTML string, this module appends `Element`s to a tree.
-////
-//// Like the markup renderer in `pamphlet/djot`, the special forms are
-//// resolved in the continuation monad: each resolver takes what was written
-//// in the source and returns a `Cont(t, a)`. A pure lookup is `continuation.return`;
-//// an effectful one can do whatever the answer type `t` allows before
-//// calling the continuation — or never call it at all. Raw blocks and raw
-//// inlines produce lustre elements directly, so the `Renderer(msg, t)` is
-//// also polymorphic in the host application's message type.
 
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string
 import jot.{
@@ -32,28 +24,78 @@ import lustre/element.{type Element}
 import lustre/element/html
 import midas/continuation.{type Continuation as K}
 
-/// How the special forms of a document are rendered to lustre elements.
+/// Source attributes, or merged attributes for resolved links and images.
+pub type Attributes =
+  Dict(String, String)
+
+/// Presentation policy for every document node and generated structural element.
+/// Start from `default()` and override individual fields with a record update.
 ///
-/// `resolve_url` and `resolve_symbol` are lookups from what was written in
-/// the source to what should appear in the output, as in the markup
-/// renderer. Raw blocks (```` ```=html ````) and raw inlines
-/// (`` `…`{=html} ``) are payloads addressed directly to the output, so
-/// their resolvers continue with `Element`s; `msg` is the message type of
-/// those elements, and of everything the render produces.
+/// `resolve_*` callbacks look up URLs and symbols; `render_*` callbacks construct
+/// complete elements. Parents receive already-rendered children in source order.
+/// Pamphlet owns traversal, whitespace rules, references, and footnote numbering.
+/// Links/images receive merged attributes including resolved href/src and alt.
+/// Image alt text is flattened from source inlines, not rendered as child nodes.
 ///
-/// Each resolver returns a `Cont(t, a)`: a function that receives the rest
-/// of the render as a continuation. `t` is the answer type of the whole
-/// render — a resolver may perform effects before continuing, or finish the
-/// render itself by returning a `t` without calling the continuation.
+/// Each callback returns a continuation. Children run before their parent;
+/// returning without continuing halts subsequent work, but cannot undo children.
+/// Dropping a parent's children also does not undo their effects or footnotes.
 ///
-/// Start from `default()` and override individual forms with a record
-/// update.
+/// Tight-list paragraphs use `render_tight_paragraph`, which returns a list of
+/// elements (by default the children) to avoid adding a wrapper or fragment.
+/// Footnote reference/backlink/item callbacks receive the assigned
+/// number as a string; preserve the default IDs/links when changing their HTML.
+/// Raw and code callbacks receive unescaped source. Math callbacks receive LaTeX
+/// without output delimiters. `render_symbol` receives the resolved symbol.
 pub type Renderer(msg, t) {
   Renderer(
     resolve_url: fn(String) -> K(t, String),
-    resolve_raw_block: fn(String) -> K(t, Element(msg)),
-    resolve_raw_inline: fn(String) -> K(t, Element(msg)),
     resolve_symbol: fn(String) -> K(t, String),
+    render_document: fn(List(Element(msg))) -> K(t, Element(msg)),
+    render_thematic_break: fn() -> K(t, Element(msg)),
+    render_paragraph: fn(Attributes, List(Element(msg))) -> K(t, Element(msg)),
+    render_tight_paragraph: fn(Attributes, List(Element(msg))) ->
+      K(t, List(Element(msg))),
+    render_heading: fn(Attributes, Int, List(Element(msg))) ->
+      K(t, Element(msg)),
+    render_code_block: fn(Attributes, Option(String), String) ->
+      K(t, Element(msg)),
+    render_raw_block: fn(String) -> K(t, Element(msg)),
+    render_raw_inline: fn(String) -> K(t, Element(msg)),
+    render_bullet_list: fn(ListLayout, jot.BulletStyle, List(Element(msg))) ->
+      K(t, Element(msg)),
+    render_ordered_list: fn(
+      ListLayout,
+      jot.OrdinalPunctuation,
+      jot.OrdinalStyle,
+      Int,
+      List(Element(msg)),
+    ) -> K(t, Element(msg)),
+    render_list_item: fn(List(Element(msg))) -> K(t, Element(msg)),
+    render_block_quote: fn(Attributes, List(Element(msg))) -> K(t, Element(msg)),
+    render_div: fn(Option(String), Attributes, List(Element(msg))) ->
+      K(t, Element(msg)),
+    render_text: fn(String) -> K(t, Element(msg)),
+    render_linebreak: fn() -> K(t, Element(msg)),
+    render_non_breaking_space: fn() -> K(t, Element(msg)),
+    render_strong: fn(List(Element(msg))) -> K(t, Element(msg)),
+    render_emphasis: fn(List(Element(msg))) -> K(t, Element(msg)),
+    render_delete: fn(List(Element(msg))) -> K(t, Element(msg)),
+    render_insert: fn(List(Element(msg))) -> K(t, Element(msg)),
+    render_mark: fn(List(Element(msg))) -> K(t, Element(msg)),
+    render_superscript: fn(List(Element(msg))) -> K(t, Element(msg)),
+    render_subscript: fn(List(Element(msg))) -> K(t, Element(msg)),
+    render_link: fn(Attributes, List(Element(msg))) -> K(t, Element(msg)),
+    render_image: fn(Attributes) -> K(t, Element(msg)),
+    render_span: fn(Attributes, List(Element(msg))) -> K(t, Element(msg)),
+    render_code: fn(String) -> K(t, Element(msg)),
+    render_math_inline: fn(String) -> K(t, Element(msg)),
+    render_math_display: fn(String) -> K(t, Element(msg)),
+    render_symbol: fn(String) -> K(t, Element(msg)),
+    render_footnote_reference: fn(String, String) -> K(t, Element(msg)),
+    render_footnote_backlink: fn(String) -> K(t, Element(msg)),
+    render_footnote_item: fn(String, List(Element(msg))) -> K(t, Element(msg)),
+    render_footnotes: fn(List(Element(msg))) -> K(t, Element(msg)),
   )
 }
 
@@ -61,29 +103,155 @@ pub type Renderer(msg, t) {
 /// allows.
 ///
 /// URLs pass through untouched and symbols render as written inside jot's
-/// `<span class="symbol">`. Raw content cannot be spliced into a lustre
-/// tree without a wrapper element, so raw blocks render inside a `<div>`
-/// and raw inlines inside a `<span>`, both via
-/// `element.unsafe_raw_html` — as with `jot.document_to_html`, the content
-/// is not escaped, so override these for untrusted documents.
+/// `<span class="symbol">`. Raw blocks and raw inlines are escaped text inside
+/// `<div>` elements. Override their render callbacks to interpret raw content.
+/// All callbacks construct their own complete element; defaults do not dispatch
+/// through other callbacks (e.g. a default link does not call `render_text`).
 pub fn default() -> Renderer(msg, t) {
   Renderer(
     resolve_url: continuation.return,
-    resolve_raw_block: fn(content) {
-      continuation.return(html.div([], [html.text(content)]))
-    },
-    resolve_raw_inline: fn(content) {
-      continuation.return(html.div([], [html.text(content)]))
-    },
     resolve_symbol: continuation.return,
+    render_document: fn(children) {
+      continuation.return(element.fragment(children))
+    },
+    render_thematic_break: fn() { continuation.return(html.hr([])) },
+    render_paragraph: container("p"),
+    render_tight_paragraph: fn(_, children) { continuation.return(children) },
+    render_heading: fn(attrs, level, children) {
+      tag("h" <> int.to_string(level), attrs, children)
+    },
+    render_raw_block: fn(content) {
+      continuation.return(html.div([], [html.text(content)]))
+    },
+    render_raw_inline: fn(content) {
+      continuation.return(html.div([], [html.text(content)]))
+    },
+    render_code_block: fn(attrs, language, content) {
+      let code_attrs = case language {
+        Some(lang) -> add_attribute(attrs, "class", "language-" <> lang)
+        None -> attrs
+      }
+      continuation.return(
+        html.pre([], [
+          html.code(attributes_to_lustre(code_attrs), [element.text(content)]),
+        ]),
+      )
+    },
+    render_bullet_list: fn(_, _, children) { tag("ul", dict.new(), children) },
+    render_ordered_list: fn(_, _, ordinal, start, children) {
+      let attrs = case start {
+        1 -> dict.new()
+        _ -> dict.from_list([#("start", int.to_string(start))])
+      }
+      let attrs = case ordinal {
+        NumericOrdinal -> attrs
+        LowerAlphaOrdinal -> dict.insert(attrs, "type", "a")
+        UpperAlphaOrdinal -> dict.insert(attrs, "type", "A")
+      }
+      tag("ol", attrs, children)
+    },
+    render_list_item: tag("li", dict.new(), _),
+    render_block_quote: container("blockquote"),
+    render_div: fn(_, attrs, children) { tag("div", attrs, children) },
+    render_text: fn(text) { continuation.return(element.text(text)) },
+    render_linebreak: fn() { continuation.return(html.br([])) },
+    render_non_breaking_space: fn() {
+      continuation.return(element.text("\u{00A0}"))
+    },
+    render_strong: tag("strong", dict.new(), _),
+    render_emphasis: tag("em", dict.new(), _),
+    render_delete: tag("del", dict.new(), _),
+    render_insert: tag("ins", dict.new(), _),
+    render_mark: tag("mark", dict.new(), _),
+    render_superscript: tag("sup", dict.new(), _),
+    render_subscript: tag("sub", dict.new(), _),
+    render_link: container("a"),
+    render_image: fn(attrs) {
+      continuation.return(html.img(attributes_to_lustre(attrs)))
+    },
+    render_span: container("span"),
+    render_code: fn(content) {
+      continuation.return(html.code([], [element.text(content)]))
+    },
+    render_math_inline: fn(latex) {
+      continuation.return(
+        html.span([attribute.class("math inline")], [
+          element.text("\\(" <> latex <> "\\)"),
+        ]),
+      )
+    },
+    render_math_display: fn(latex) {
+      continuation.return(
+        html.span([attribute.class("math display")], [
+          element.text("\\[" <> latex <> "\\]"),
+        ]),
+      )
+    },
+    render_symbol: fn(text) {
+      continuation.return(
+        html.span([attribute.class("symbol")], [element.text(text)]),
+      )
+    },
+    render_footnote_reference: fn(_, number) {
+      continuation.return(
+        html.a(
+          [
+            attribute.id("fnref" <> number),
+            attribute.href("#fn" <> number),
+            attribute.role("doc-noteref"),
+          ],
+          [html.sup([], [element.text(number)])],
+        ),
+      )
+    },
+    render_footnote_backlink: fn(number) {
+      continuation.return(
+        html.a(
+          [
+            attribute.href("#fnref" <> number),
+            attribute.role("doc-backlink"),
+          ],
+          [element.text("↩︎")],
+        ),
+      )
+    },
+    render_footnote_item: fn(number, children) {
+      continuation.return(html.li([attribute.id("fn" <> number)], children))
+    },
+    render_footnotes: fn(children) {
+      continuation.return(
+        html.section([attribute.role("doc-endnotes")], [
+          html.hr([]),
+          html.ol([], children),
+        ]),
+      )
+    },
   )
 }
 
-/// Render a document to a lustre element.
-/// Special forms are resolved through the given renderer.
+fn tag(
+  name: String,
+  attrs: Attributes,
+  children: List(Element(msg)),
+) -> K(t, Element(msg)) {
+  continuation.return(element.element(
+    name,
+    attributes_to_lustre(attrs),
+    children,
+  ))
+}
+
+fn container(
+  name: String,
+) -> fn(Attributes, List(Element(msg))) -> K(t, Element(msg)) {
+  fn(attrs, children) { tag(name, attrs, children) }
+}
+
+/// Render a document to a lustre element using the given resolution and
+/// presentation callbacks.
 ///
-/// The document's containers (and the footnote section, when the document
-/// uses footnotes) are returned as an `element.fragment`.
+/// The document's containers (and the footnote section, when used) are passed
+/// to `render_document`, which returns an `element.fragment` by default.
 ///
 /// The result is a `Cont(t, Element(msg))`: apply it to a final
 /// continuation to run the render. A pure renderer runs at any answer
@@ -110,10 +278,7 @@ pub fn to_lustre(
 
   // only create the footnotes section if it is needed
   case generated_lustre.used_footnotes {
-    [] ->
-      continuation.return(
-        element.fragment(list.reverse(generated_lustre.elements)),
-      )
+    [] -> renderer.render_document(list.reverse(generated_lustre.elements))
     used_footnotes -> {
       use lustre_with_footnotes <- continuation.then(create_footnotes(
         refs,
@@ -121,16 +286,11 @@ pub fn to_lustre(
         GeneratedLustre([], used_footnotes),
       ))
 
-      let footnotes_section =
-        html.section([attribute.role("doc-endnotes")], [
-          html.hr([]),
-          html.ol([], list.reverse(lustre_with_footnotes.elements)),
-        ])
-
-      continuation.return(
-        element.fragment(
-          list.reverse([footnotes_section, ..generated_lustre.elements]),
-        ),
+      use footnotes_section <- continuation.then(
+        renderer.render_footnotes(list.reverse(lustre_with_footnotes.elements)),
+      )
+      renderer.render_document(
+        list.reverse([footnotes_section, ..generated_lustre.elements]),
       )
     }
   }
@@ -156,7 +316,7 @@ fn containers_to_lustre_with_last_paragraph(
   containers: List(Container),
   refs: RenderRefs(msg, t),
   lustre: GeneratedLustre(msg),
-  apply: fn(GeneratedLustre(msg)) -> GeneratedLustre(msg),
+  apply: fn(GeneratedLustre(msg)) -> K(t, GeneratedLustre(msg)),
 ) -> K(t, GeneratedLustre(msg)) {
   case containers {
     [] -> continuation.return(lustre)
@@ -169,10 +329,8 @@ fn containers_to_lustre_with_last_paragraph(
             refs,
             TrimLast,
           ))
-          let inner = apply(inner)
-          continuation.return(
-            wrap_elements(lustre, inner, html.p(attributes_to_lustre(attrs), _)),
-          )
+          use inner <- continuation.then(apply(inner))
+          wrap_elements(lustre, inner, refs.renderer.render_paragraph(attrs, _))
         }
         _ -> {
           use lustre <- continuation.then(container_to_lustre(
@@ -180,8 +338,13 @@ fn containers_to_lustre_with_last_paragraph(
             container,
             refs,
           ))
-          let inner = apply(GeneratedLustre([], lustre.used_footnotes))
-          continuation.return(wrap_elements(lustre, inner, html.p([], _)))
+          use inner <- continuation.then(
+            apply(GeneratedLustre([], lustre.used_footnotes)),
+          )
+          wrap_elements(lustre, inner, refs.renderer.render_paragraph(
+            dict.new(),
+            _,
+          ))
         }
       }
     }
@@ -220,7 +383,8 @@ fn container_to_lustre(
   refs: RenderRefs(msg, t),
 ) -> K(t, GeneratedLustre(msg)) {
   case container {
-    ThematicBreak -> continuation.return(lustre |> append_element(html.hr([])))
+    ThematicBreak ->
+      append_rendered(lustre, refs.renderer.render_thematic_break())
 
     Paragraph(attrs, inlines) -> {
       use inner <- continuation.then(inlines_to_lustre(
@@ -229,79 +393,61 @@ fn container_to_lustre(
         refs,
         TrimLast,
       ))
-      continuation.return(
-        wrap_elements(lustre, inner, html.p(attributes_to_lustre(attrs), _)),
-      )
+      wrap_elements(lustre, inner, refs.renderer.render_paragraph(attrs, _))
     }
 
     Codeblock(attrs, language, content) -> {
-      let code_attrs = case language {
-        Some(lang) -> add_attribute(attrs, "class", "language-" <> lang)
-        None -> attrs
-      }
-      continuation.return(
-        lustre
-        |> append_element(
-          html.pre([], [
-            html.code(attributes_to_lustre(code_attrs), [
-              element.text(content),
-            ]),
-          ]),
-        ),
-      )
+      use element <- continuation.then(refs.renderer.render_code_block(
+        attrs,
+        language,
+        content,
+      ))
+      continuation.return(lustre |> append_element(element))
     }
 
     Heading(attrs, level, inlines) -> {
-      let tag = "h" <> int.to_string(level)
       use inner <- continuation.then(inlines_to_lustre(
         GeneratedLustre([], lustre.used_footnotes),
         inlines,
         refs,
         TrimLast,
       ))
-      continuation.return(
-        wrap_elements(lustre, inner, element.element(
-          tag,
-          attributes_to_lustre(attrs),
-          _,
-        )),
-      )
+      wrap_elements(lustre, inner, refs.renderer.render_heading(attrs, level, _))
     }
 
     RawBlock(content) -> {
-      use element <- continuation.then(refs.renderer.resolve_raw_block(content))
+      use element <- continuation.then(refs.renderer.render_raw_block(content))
       continuation.return(lustre |> append_element(element))
     }
 
-    BulletList(layout:, style: _, items:) -> {
+    BulletList(layout:, style:, items:) -> {
       use inner <- continuation.then(list_items_to_lustre(
         GeneratedLustre([], lustre.used_footnotes),
         layout,
         items,
         refs,
       ))
-      continuation.return(wrap_elements(lustre, inner, html.ul([], _)))
+      wrap_elements(lustre, inner, refs.renderer.render_bullet_list(
+        layout,
+        style,
+        _,
+      ))
     }
 
-    OrderedList(layout:, punctuation: _, ordinal:, start:, items:) -> {
-      let attrs = case start {
-        1 -> dict.new()
-        _ -> dict.from_list([#("start", int.to_string(start))])
-      }
-      let attrs = case ordinal {
-        NumericOrdinal -> attrs
-        LowerAlphaOrdinal -> dict.insert(attrs, "type", "a")
-        UpperAlphaOrdinal -> dict.insert(attrs, "type", "A")
-      }
+    OrderedList(layout:, punctuation:, ordinal:, start:, items:) -> {
       use inner <- continuation.then(list_items_to_lustre(
         GeneratedLustre([], lustre.used_footnotes),
         layout,
         items,
         refs,
       ))
-      continuation.return(
-        wrap_elements(lustre, inner, html.ol(attributes_to_lustre(attrs), _)),
-      )
+      wrap_elements(lustre, inner, refs.renderer.render_ordered_list(
+        layout,
+        punctuation,
+        ordinal,
+        start,
+        _,
+      ))
     }
 
     BlockQuote(attrs, items) -> {
@@ -310,26 +456,20 @@ fn container_to_lustre(
         refs,
         GeneratedLustre([], lustre.used_footnotes),
       ))
-      continuation.return(
-        wrap_elements(lustre, inner, html.blockquote(
-          attributes_to_lustre(attrs),
-          _,
-        )),
-      )
+      wrap_elements(lustre, inner, refs.renderer.render_block_quote(attrs, _))
     }
 
-    Div(class: _, attributes:, items:) -> {
+    Div(class:, attributes:, items:) -> {
       use inner <- continuation.then(containers_to_lustre(
         items,
         refs,
         GeneratedLustre([], lustre.used_footnotes),
       ))
-      continuation.return(
-        wrap_elements(lustre, inner, html.div(
-          attributes_to_lustre(attributes),
-          _,
-        )),
-      )
+      wrap_elements(lustre, inner, refs.renderer.render_div(
+        class,
+        attributes,
+        _,
+      ))
     }
   }
 }
@@ -359,13 +499,17 @@ fn create_footnotes(
           footnote,
           refs,
           lustre,
-          add_footnote_link(_, footnote_number),
+          add_footnote_link(_, footnote_number, refs),
         )
       Error(Nil) -> {
-        let inner =
+        use inner <- continuation.then(
           GeneratedLustre([], lustre.used_footnotes)
-          |> add_footnote_link(footnote_number)
-        continuation.return(wrap_elements(lustre, inner, html.p([], _)))
+          |> add_footnote_link(footnote_number, refs),
+        )
+        wrap_elements(lustre, inner, refs.renderer.render_paragraph(
+          dict.new(),
+          _,
+        ))
       }
     }
   }
@@ -380,12 +524,13 @@ fn create_footnotes(
         footnote,
         footnote_number,
       ))
-      let lustre =
+      use lustre <- continuation.then(
         lustre_acc
-        |> wrap_elements(inner, html.li(
-          [attribute.id("fn" <> footnote_number)],
+        |> wrap_elements(inner, refs.renderer.render_footnote_item(
+          footnote_number,
           _,
-        ))
+        )),
+      )
 
       let new_used_footnotes =
         list.append(get_new_footnotes(lustre_acc, lustre, []), other_footnotes)
@@ -397,16 +542,11 @@ fn create_footnotes(
 fn add_footnote_link(
   lustre: GeneratedLustre(msg),
   footnote_number: String,
-) -> GeneratedLustre(msg) {
-  lustre
-  |> append_element(
-    html.a(
-      [
-        attribute.href("#fnref" <> footnote_number),
-        attribute.role("doc-backlink"),
-      ],
-      [element.text("↩︎")],
-    ),
+  refs: RenderRefs(msg, t),
+) -> K(t, GeneratedLustre(msg)) {
+  append_rendered(
+    lustre,
+    refs.renderer.render_footnote_backlink(footnote_number),
   )
 }
 
@@ -443,12 +583,21 @@ fn append_element(
 fn wrap_elements(
   original_lustre: GeneratedLustre(msg),
   inner: GeneratedLustre(msg),
-  wrap: fn(List(Element(msg))) -> Element(msg),
-) -> GeneratedLustre(msg) {
-  GeneratedLustre(
-    elements: [wrap(list.reverse(inner.elements)), ..original_lustre.elements],
+  wrap: fn(List(Element(msg))) -> K(t, Element(msg)),
+) -> K(t, GeneratedLustre(msg)) {
+  use rendered <- continuation.then(wrap(list.reverse(inner.elements)))
+  continuation.return(GeneratedLustre(
+    elements: [rendered, ..original_lustre.elements],
     used_footnotes: inner.used_footnotes,
-  )
+  ))
+}
+
+fn append_rendered(
+  lustre: GeneratedLustre(msg),
+  rendered: K(t, Element(msg)),
+) -> K(t, GeneratedLustre(msg)) {
+  use rendered <- continuation.then(rendered)
+  continuation.return(append_element(lustre, rendered))
 }
 
 type Trim {
@@ -465,19 +614,23 @@ fn list_items_to_lustre(
   case items {
     [] -> continuation.return(lustre)
 
-    [[Paragraph(_, inlines)], ..rest] if layout == Tight -> {
+    [[Paragraph(attrs, inlines)], ..rest] if layout == Tight -> {
       use inner <- continuation.then(inlines_to_lustre(
         GeneratedLustre([], lustre.used_footnotes),
         inlines,
         refs,
         TrimLast,
       ))
-      lustre
-      |> wrap_elements(inner, html.li([], _))
-      |> list_items_to_lustre(layout, rest, refs)
+      use inner <- continuation.then(tight_paragraph(inner, attrs, refs))
+      use lustre <- continuation.then(wrap_elements(
+        lustre,
+        inner,
+        refs.renderer.render_list_item,
+      ))
+      list_items_to_lustre(lustre, layout, rest, refs)
     }
 
-    [[Paragraph(_, inlines), nested_list, ..item_rest], ..rest]
+    [[Paragraph(attrs, inlines), nested_list, ..item_rest], ..rest]
       if layout == Tight
     -> {
       use inner <- continuation.then(inlines_to_lustre(
@@ -486,14 +639,18 @@ fn list_items_to_lustre(
         refs,
         TrimLast,
       ))
+      use inner <- continuation.then(tight_paragraph(inner, attrs, refs))
       use inner <- continuation.then(containers_to_lustre(
         [nested_list, ..item_rest],
         refs,
         inner,
       ))
-      lustre
-      |> wrap_elements(inner, html.li([], _))
-      |> list_items_to_lustre(layout, rest, refs)
+      use lustre <- continuation.then(wrap_elements(
+        lustre,
+        inner,
+        refs.renderer.render_list_item,
+      ))
+      list_items_to_lustre(lustre, layout, rest, refs)
     }
 
     [item, ..rest] -> {
@@ -502,11 +659,28 @@ fn list_items_to_lustre(
         refs,
         GeneratedLustre([], lustre.used_footnotes),
       ))
-      lustre
-      |> wrap_elements(inner, html.li([], _))
-      |> list_items_to_lustre(layout, rest, refs)
+      use lustre <- continuation.then(wrap_elements(
+        lustre,
+        inner,
+        refs.renderer.render_list_item,
+      ))
+      list_items_to_lustre(lustre, layout, rest, refs)
     }
   }
+}
+
+fn tight_paragraph(
+  inner: GeneratedLustre(msg),
+  attrs: Attributes,
+  refs: RenderRefs(msg, t),
+) -> K(t, GeneratedLustre(msg)) {
+  use children <- continuation.then(refs.renderer.render_tight_paragraph(
+    attrs,
+    list.reverse(inner.elements),
+  ))
+  continuation.return(
+    GeneratedLustre(..inner, elements: list.reverse(children)),
+  )
 }
 
 fn inlines_to_lustre(
@@ -521,7 +695,7 @@ fn inlines_to_lustre(
     // jot has no raw inline variant: `` `…`{=html} `` parses as a Code
     // inline followed by the literal attribute text
     [Code(content), Text("{=html}" <> rest), ..other] -> {
-      use element <- continuation.then(refs.renderer.resolve_raw_inline(content))
+      use element <- continuation.then(refs.renderer.render_raw_inline(content))
       let lustre = lustre |> append_element(element)
       case rest {
         "" -> inlines_to_lustre(lustre, other, refs, trim)
@@ -553,32 +727,13 @@ fn inline_to_lustre(
   trim: Trim,
 ) -> K(t, GeneratedLustre(msg)) {
   case inline {
-    MathInline(latex) -> {
-      let latex = "\\(" <> latex <> "\\)"
-
-      continuation.return(
-        lustre
-        |> append_element(
-          html.span([attribute.class("math inline")], [element.text(latex)]),
-        ),
-      )
-    }
-    MathDisplay(latex) -> {
-      let latex = "\\[" <> latex <> "\\]"
-
-      continuation.return(
-        lustre
-        |> append_element(
-          html.span([attribute.class("math display")], [element.text(latex)]),
-        ),
-      )
-    }
-    NonBreakingSpace -> {
-      continuation.return(lustre |> append_element(element.text("\u{00A0}")))
-    }
-    Linebreak -> {
-      continuation.return(lustre |> append_element(html.br([])))
-    }
+    MathInline(latex) ->
+      append_rendered(lustre, refs.renderer.render_math_inline(latex))
+    MathDisplay(latex) ->
+      append_rendered(lustre, refs.renderer.render_math_display(latex))
+    NonBreakingSpace ->
+      append_rendered(lustre, refs.renderer.render_non_breaking_space())
+    Linebreak -> append_rendered(lustre, refs.renderer.render_linebreak())
     Text(text) -> {
       let text = case trim {
         NoTrim -> text
@@ -588,7 +743,7 @@ fn inline_to_lustre(
       // nothing; adding an empty text node would only pad the tree
       case text {
         "" -> continuation.return(lustre)
-        text -> continuation.return(append_element(lustre, element.text(text)))
+        text -> append_rendered(lustre, refs.renderer.render_text(text))
       }
     }
     Strong(inlines) -> {
@@ -598,7 +753,7 @@ fn inline_to_lustre(
         refs,
         trim,
       ))
-      continuation.return(wrap_elements(lustre, inner, html.strong([], _)))
+      wrap_elements(lustre, inner, refs.renderer.render_strong)
     }
     Emphasis(inlines) -> {
       use inner <- continuation.then(inlines_to_lustre(
@@ -607,7 +762,7 @@ fn inline_to_lustre(
         refs,
         trim,
       ))
-      continuation.return(wrap_elements(lustre, inner, html.em([], _)))
+      wrap_elements(lustre, inner, refs.renderer.render_emphasis)
     }
     Delete(inlines) -> {
       use inner <- continuation.then(inlines_to_lustre(
@@ -616,7 +771,7 @@ fn inline_to_lustre(
         refs,
         NoTrim,
       ))
-      continuation.return(wrap_elements(lustre, inner, html.del([], _)))
+      wrap_elements(lustre, inner, refs.renderer.render_delete)
     }
     Insert(inlines) -> {
       use inner <- continuation.then(inlines_to_lustre(
@@ -625,7 +780,7 @@ fn inline_to_lustre(
         refs,
         NoTrim,
       ))
-      continuation.return(wrap_elements(lustre, inner, html.ins([], _)))
+      wrap_elements(lustre, inner, refs.renderer.render_insert)
     }
     Mark(inlines) -> {
       use inner <- continuation.then(inlines_to_lustre(
@@ -634,7 +789,7 @@ fn inline_to_lustre(
         refs,
         NoTrim,
       ))
-      continuation.return(wrap_elements(lustre, inner, html.mark([], _)))
+      wrap_elements(lustre, inner, refs.renderer.render_mark)
     }
     Superscript(inlines) -> {
       use inner <- continuation.then(inlines_to_lustre(
@@ -643,7 +798,7 @@ fn inline_to_lustre(
         refs,
         NoTrim,
       ))
-      continuation.return(wrap_elements(lustre, inner, html.sup([], _)))
+      wrap_elements(lustre, inner, refs.renderer.render_superscript)
     }
     Subscript(inlines) -> {
       use inner <- continuation.then(inlines_to_lustre(
@@ -652,7 +807,7 @@ fn inline_to_lustre(
         refs,
         NoTrim,
       ))
-      continuation.return(wrap_elements(lustre, inner, html.sub([], _)))
+      wrap_elements(lustre, inner, refs.renderer.render_subscript)
     }
     Link(attributes, text, destination) -> {
       // Merge: reference attrs <- href <- inline attrs
@@ -672,9 +827,7 @@ fn inline_to_lustre(
         refs,
         trim,
       ))
-      continuation.return(
-        wrap_elements(lustre, inner, html.a(attributes_to_lustre(attrs), _)),
-      )
+      wrap_elements(lustre, inner, refs.renderer.render_link(attrs, _))
     }
     Image(attributes, text, destination) -> {
       // Merge: reference attrs <- src/alt <- inline attrs
@@ -689,18 +842,11 @@ fn inline_to_lustre(
         |> dict.merge(destination_attrs)
         |> dict.insert("alt", take_inline_text(text, ""))
         |> dict.merge(attributes)
-      continuation.return(
-        lustre |> append_element(html.img(attributes_to_lustre(attrs))),
-      )
+      append_rendered(lustre, refs.renderer.render_image(attrs))
     }
     Symbol(content) -> {
       use text <- continuation.then(refs.renderer.resolve_symbol(content))
-      continuation.return(
-        lustre
-        |> append_element(
-          html.span([attribute.class("symbol")], [element.text(text)]),
-        ),
-      )
+      append_rendered(lustre, refs.renderer.render_symbol(text))
     }
     Span(attributes, inlines) -> {
       use inner <- continuation.then(inlines_to_lustre(
@@ -709,17 +855,10 @@ fn inline_to_lustre(
         refs,
         trim,
       ))
-      continuation.return(
-        wrap_elements(lustre, inner, html.span(
-          attributes_to_lustre(attributes),
-          _,
-        )),
-      )
+      wrap_elements(lustre, inner, refs.renderer.render_span(attributes, _))
     }
     Code(content) -> {
-      continuation.return(
-        lustre |> append_element(html.code([], [element.text(content)])),
-      )
+      append_rendered(lustre, refs.renderer.render_code(content))
     }
     Footnote(reference) -> {
       let #(footnote_number, new_used_footnotes) =
@@ -728,19 +867,10 @@ fn inline_to_lustre(
           reference,
           lustre.used_footnotes,
         )
-      let footnote_attrs = [
-        attribute.id("fnref" <> footnote_number),
-        attribute.href("#fn" <> footnote_number),
-        attribute.role("doc-noteref"),
-      ]
-
-      let updated_lustre =
-        lustre
-        |> append_element(
-          html.a(footnote_attrs, [
-            html.sup([], [element.text(footnote_number)]),
-          ]),
-        )
+      use updated_lustre <- continuation.then(append_rendered(
+        lustre,
+        refs.renderer.render_footnote_reference(reference, footnote_number),
+      ))
 
       continuation.return(
         GeneratedLustre(..updated_lustre, used_footnotes: new_used_footnotes),

@@ -335,7 +335,7 @@ pub fn lustre_rewrite_urls_applies_to_references_test() {
 pub fn lustre_rewrite_raw_blocks_test() {
   // render raw html as visible source instead of injecting it
   let renderer =
-    lustre.Renderer(..lustre.default(), resolve_raw_block: fn(content) {
+    lustre.Renderer(..lustre.default(), render_raw_block: fn(content) {
       continuation.return(html.pre([], [element.text(content)]))
     })
 
@@ -347,7 +347,7 @@ pub fn lustre_rewrite_raw_blocks_test() {
 
 pub fn lustre_rewrite_raw_blocks_drop_test() {
   let renderer =
-    lustre.Renderer(..lustre.default(), resolve_raw_block: fn(_content) {
+    lustre.Renderer(..lustre.default(), render_raw_block: fn(_content) {
       continuation.return(element.none())
     })
 
@@ -364,7 +364,7 @@ after"
 pub fn lustre_rewrite_raw_inlines_test() {
   // escape raw inline html instead of injecting it
   let renderer =
-    lustre.Renderer(..lustre.default(), resolve_raw_inline: fn(content) {
+    lustre.Renderer(..lustre.default(), render_raw_inline: fn(content) {
       continuation.return(element.text(content))
     })
 
@@ -432,7 +432,7 @@ pub fn lustre_resolve_urls_applies_to_references_test() {
 
 pub fn lustre_resolve_raw_blocks_can_halt_test() {
   let renderer =
-    lustre.Renderer(..lustre.default(), resolve_raw_block: fn(_content) {
+    lustre.Renderer(..lustre.default(), render_raw_block: fn(_content) {
       fn(_k) { Error("raw HTML is not allowed here") }
     })
 
@@ -447,7 +447,7 @@ pub fn lustre_resolve_raw_blocks_can_halt_test() {
 
 pub fn lustre_resolve_raw_inlines_can_halt_test() {
   let renderer =
-    lustre.Renderer(..lustre.default(), resolve_raw_inline: fn(_content) {
+    lustre.Renderer(..lustre.default(), render_raw_inline: fn(_content) {
       fn(_k) { Error("raw HTML is not allowed here") }
     })
 
